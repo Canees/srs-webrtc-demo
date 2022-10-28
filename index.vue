@@ -23,29 +23,29 @@
     </div>
 
     <div class="contrl">
-      <n-button @click="contrl(8)">
+      <button @click="contrl(8)">
         上
-      </n-button>
-      <n-button @click="contrl(2)">
+      </button>
+      <button @click="contrl(2)">
         下
-      </n-button>
-      <n-button @click="contrl(4)">
+      </button>
+      <button @click="contrl(4)">
         左
-      </n-button>
-      <n-button @click="contrl(6)">
+      </button>
+      <button @click="contrl(6)">
         右
-      </n-button>
-      <n-button @click="contrl(10)">
+      </button>
+      <button @click="contrl(10)">
         放大
-      </n-button>
-      <n-button @click="contrl(11)">
+      </button>
+      <button @click="contrl(11)">
         缩小
-      </n-button>
+      </button>
     </div>
   </div>
 </template>
 <script setup lang="ts">
-import axios from '@/utils/axios'
+import axios from 'axios'
 import { onMounted, onUnmounted, ref } from 'vue'
 let webRtc: any = null
 const TOKEN = '833cd2ff8851509d0c4b2cab0dbdb74d'
@@ -118,7 +118,7 @@ const initWebRtc = async (HOST: String, token: String, uuid: string, callBack: F
  */
 const contrl = (command: number, number = 1) => {
   if (!cUUID.value) return
-  if (timer) return
+  if (timer !== null) clearTimeout(timer)
   timer = setTimeout(() => {
     window.fetch('http://20.20.20.9:8089', {
       method: 'POST',
@@ -133,8 +133,7 @@ const contrl = (command: number, number = 1) => {
         }
       })
     })
-    timer = null
-  }, 1000)
+  }, 500)
 }
 
 /**
