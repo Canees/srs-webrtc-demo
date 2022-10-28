@@ -51,6 +51,7 @@ let webRtc: any = null
 const TOKEN = '833cd2ff8851509d0c4b2cab0dbdb74d'
 const cList = ref()
 const cUUID = ref('')
+let timer:any = null
 /**
  * rtc 初始化
  * @param HOST
@@ -111,19 +112,29 @@ const initWebRtc = async (HOST: String, token: String, uuid: string, callBack: F
 }
 
 /**
- * 云台控制2
- * @param url
- * @param params
+ * 云台控制
+ * @param command 指令:数字键盘1-9去掉5,10:焦距放大,11:焦距缩小 12:亮度,13:色彩饱和度,14:对比度,15:清晰度
+ * @param number [云台速度|焦距参数|色彩饱和度]等值  亮度值 0-100
  */
-const camerContrl = async (url: string, params: object) => {
-  // 发送offer
-  const respons = await window.fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params)
-  })
-  const res = await respons.json()
-  return res
+const contrl = (command: number, number = 1) => {
+  if (!cUUID.value) return
+  if (timer) return
+  timer = setTimeout(() => {
+    window.fetch('http://20.20.20.9:8089', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: 'cloudcontrol.control',
+        token: TOKEN,
+        body: {
+          uuid: cUUID.value, // 摄像头id
+          command,
+          number // [云台速度|焦距参数|色彩饱和度]等值  亮度值 0-100
+        }
+      })
+    })
+    timer = null
+  }, 1000)
 }
 
 /**
@@ -132,6 +143,7 @@ const camerContrl = async (url: string, params: object) => {
  */
 const play = async (uuid: string) => {
   if (!uuid) return
+  if (uuid === cUUID.value) return
   if (webRtc) webRtc.close()
   cUUID.value = uuid
   webRtc = await initWebRtc('20.20.20.9', TOKEN, uuid, (event: any) => {
@@ -140,26 +152,6 @@ const play = async (uuid: string) => {
     dom.srcObject = streams[0]
     console.log('track', event)
   })
-}
-
-/**
- * 云台控制1
- * @param command 指令:数字键盘1-9去掉5,10:焦距放大,11:焦距缩小 12:亮度,13:色彩饱和度,14:对比度,15:清晰度
- * @param number [云台速度|焦距参数|色彩饱和度]等值  亮度值 0-100
- */
-const contrl = (command: number, number = 1) => {
-  if (!cUUID.value) return
-  if (!cUUID.value) return
-  const params = {
-    code: 'cloudcontrol.control',
-    token: TOKEN,
-    body: {
-      uuid: cUUID.value, // 摄像头id
-      command,
-      number // [云台速度|焦距参数|色彩饱和度]等值  亮度值 0-100
-    }
-  }
-  camerContrl('http://20.20.20.9:8089', params)
 }
 
 // 获取摄像头播放地址
@@ -191,6 +183,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (webRtc) webRtc.close()
+  if (timer) window.clearTimeout(timer)
 })
 </script>
 <style lang="less" scoped>
