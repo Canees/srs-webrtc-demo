@@ -1,41 +1,56 @@
 <template>
   <div class="videoBox">
-    <video
-      id="test"
-      crossorigin="anonymous"
-      autoplay
-      playsinline
-      muted
-      controls
-    />
+    <div class="box">
+      <div class="list">
+        <ul>
+          <li
+            v-for="(item, index) in cList"
+            :key="index"
+            @click="play(item.uuid)"
+          >
+            {{ item.name }}
+          </li>
+        </ul>
+      </div>
+      <video
+        id="test"
+        crossorigin="anonymous"
+        autoplay
+        playsinline
+        muted
+        controls
+      />
+    </div>
+
     <div class="contrl">
-      <button @click="contrl(8)">
+      <n-button @click="contrl(8)">
         上
-      </button>
-      <button @click="contrl(2)">
+      </n-button>
+      <n-button @click="contrl(2)">
         下
-      </button>
-      <button @click="contrl(4)">
+      </n-button>
+      <n-button @click="contrl(4)">
         左
-      </button>
-      <button @click="contrl(6)">
+      </n-button>
+      <n-button @click="contrl(6)">
         右
-      </button>
-      <button @click="contrl(10)">
+      </n-button>
+      <n-button @click="contrl(10)">
         放大
-      </button>
-      <button @click="contrl(11)">
+      </n-button>
+      <n-button @click="contrl(11)">
         缩小
-      </button>
+      </n-button>
     </div>
   </div>
 </template>
 <script setup lang="ts">
-import axios from 'axios'
+import axios from '@/utils/axios'
 import { onMounted, onUnmounted, ref } from 'vue'
-let webRtc:any = null
-const cUUID = ref('')
+let webRtc: any = null
 const TOKEN = '833cd2ff8851509d0c4b2cab0dbdb74d'
+const cList = ref()
+const cUUID = ref('')
 /**
  * rtc 初始化
  * @param HOST
@@ -44,9 +59,9 @@ const TOKEN = '833cd2ff8851509d0c4b2cab0dbdb74d'
  * @param callBack
  * @param profile 0 主 1 子
  */
-const initWebRtc = async (HOST:String, token:String, uuid:string, callBack:Function, profile = 1) => {
+const initWebRtc = async (HOST: String, token: String, uuid: string, callBack: Function, profile = 0) => {
   try {
-  // init RTC
+    // init RTC
     const Peer = new RTCPeerConnection() as any
     // Peer.addTransceiver('audio', { direction: 'recvonly' })
     Peer.addTransceiver('video', { direction: 'recvonly' })
@@ -76,6 +91,8 @@ const initWebRtc = async (HOST:String, token:String, uuid:string, callBack:Funct
       streamurl: `webrtc://${HOST}/live/${uuid + profile}?token=${token}&uuid=${uuid}&stream=${uuid + profile}&profile=${profile}`,
       tid: Number(Math.floor(new Date().getTime() * Math.random() * 100)).toString(16).slice(0, 7)
     }
+    console.log('params', params)
+
     // 发送offer
     const res = await window.fetch(params.api, {
       method: 'POST',
@@ -94,11 +111,11 @@ const initWebRtc = async (HOST:String, token:String, uuid:string, callBack:Funct
 }
 
 /**
- * 云台控制
+ * 云台控制2
  * @param url
  * @param params
  */
-const camerContrl = async (url:string, params:object) => {
+const camerContrl = async (url: string, params: object) => {
   // 发送offer
   const respons = await window.fetch(url, {
     method: 'POST',
@@ -109,6 +126,42 @@ const camerContrl = async (url:string, params:object) => {
   return res
 }
 
+/**
+ * 播放
+ * @param uuid
+ */
+const play = async (uuid: string) => {
+  if (!uuid) return
+  if (webRtc) webRtc.close()
+  cUUID.value = uuid
+  webRtc = await initWebRtc('20.20.20.9', TOKEN, uuid, (event: any) => {
+    const dom = document.getElementById('test') as any
+    const { streams } = event
+    dom.srcObject = streams[0]
+    console.log('track', event)
+  })
+}
+
+/**
+ * 云台控制1
+ * @param command 指令:数字键盘1-9去掉5,10:焦距放大,11:焦距缩小 12:亮度,13:色彩饱和度,14:对比度,15:清晰度
+ * @param number [云台速度|焦距参数|色彩饱和度]等值  亮度值 0-100
+ */
+const contrl = (command: number, number = 1) => {
+  if (!cUUID.value) return
+  if (!cUUID.value) return
+  const params = {
+    code: 'cloudcontrol.control',
+    token: TOKEN,
+    body: {
+      uuid: cUUID.value, // 摄像头id
+      command,
+      number // [云台速度|焦距参数|色彩饱和度]等值  亮度值 0-100
+    }
+  }
+  camerContrl('http://20.20.20.9:8089', params)
+}
+
 // 获取摄像头播放地址
 const getCamer = async () => {
   const { data } = await axios.post('http://20.20.20.9:8089', {
@@ -117,33 +170,8 @@ const getCamer = async () => {
     body: {}
   })
   // 35可控
-  const tmp = data.filter((el:{name:string}) => (el.name.includes('35')))
-  // 默认测试第一个
-  console.log('摄像头列表', tmp)
-  cUUID.value = tmp[2].uuid || ''
-  if (webRtc) webRtc.close()
-  webRtc = await initWebRtc('20.20.20.9', TOKEN, cUUID.value, (event:any) => {
-    const dom = document.getElementById('test') as any
-    const { streams } = event
-    dom.srcObject = streams[0]
-    console.log('track', event)
-  })
-}
-
-// 云台控制
-const contrl = (command:number) => {
-  if (!cUUID.value) return
-  const params = {
-    code: 'cloudcontrol.control',
-    token: TOKEN,
-    body: {
-      uuid: cUUID.value, // 摄像头id
-      command, // 指令:数字键盘1-9去掉5,10:焦距放大,11:焦距缩小
-      // 12:亮度,13:色彩饱和度,14:对比度,15:清晰度,
-      number: 1 // [云台速度|焦距参数|色彩饱和度]等值  亮度值 0-100
-    }
-  }
-  camerContrl('http://20.20.20.9:8089', params)
+  cList.value = data.filter((el: { name: string }) => (el.name.includes('35')))
+  console.log('摄像头列表', cList.value)
 }
 
 // 获取目录
@@ -166,23 +194,41 @@ onUnmounted(() => {
 })
 </script>
 <style lang="less" scoped>
-.videoBox{
-  video{
-    width: 800px;
-    height: 500px;
-    background: none;
-    object-fit: fill;
-    font-size: 0;
-    display: block;
-    margin: 0 auto;
+.videoBox {
+  .box {
+    display: flex;
+    justify-content: center;
+
+    .list {
+      width: 150px;
+      color: white;
+
+      li {
+        padding: 10px;
+
+        &:hover {
+          color: aqua;
+          cursor: pointer;
+        }
+      }
+    }
+
+    video {
+      width: 800px;
+      height: 500px;
+      background: none;
+      object-fit: fill;
+      font-size: 0;
+    }
   }
-  .contrl{
+
+  .contrl {
     margin-top: 10px;
     text-align: center;
-    button{
+
+    button {
       margin-left: 10px;
     }
   }
 }
-
 </style>
