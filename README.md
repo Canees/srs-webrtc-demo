@@ -2,6 +2,6 @@
 srs webrtc video demo
 
 1. index_only_one.vue
-    拉取单流
+    拉单个流
 2. index_mute
-    拉去多流
+    拉多个流
